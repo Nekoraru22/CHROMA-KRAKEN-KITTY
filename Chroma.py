@@ -81,14 +81,39 @@ class Driver():
         return int(decimal, 16)
 
 
-    def change(self, hexadecimal):
-        color = self.toBGR(hexadecimal)
-        
-        data = {
-            "effect":"CHROMA_CUSTOM",
-            "param":[ color, color, color, color ] # Left_Headset, Right_Headset, Left_Kitty, Right_Kitty (BGR format)
-        }
-
-        requests.put(f"{self.uri}/{self.device}", json=data, verify=False)
+    def change(self, data):
+        res = requests.put(f"{self.uri}/{self.device}", json=data, verify=False)
+        try: print(f"{RED}[{WHITE}·{RED}] {res.json()['error']}{RESET}")
+        except: pass
 
         print(f"{GREEN}[{WHITE}·{GREEN}] Effect aplied on: " + WHITE + f"{self.uri}/{self.device}" + RESET)
+
+    # Effects
+    def effectNone(self):
+        data = { "effect": "CHROMA_NONE" }
+        self.change(data)
+
+
+    def effectStatic(self, hexadecimal):
+        color = self.toBGR(hexadecimal)
+
+        data = {
+            "effect": "CHROMA_STATIC",
+            "param": {
+                "color": color
+            }
+        }
+        self.change(data)
+
+
+    def effectCustom(self, h1, h2, h3, h4):
+        c1 = self.toBGR(h1)
+        c2 = self.toBGR(h2)
+        c3 = self.toBGR(h3)
+        c4 = self.toBGR(h4)
+
+        data = {
+            "effect":"CHROMA_CUSTOM",
+            "param":[ c1, c2, c3, c4 ] # Left_Headset, Right_Headset, Left_Kitty, Right_Kitty (BGR format)
+        }
+        self.change(data)
