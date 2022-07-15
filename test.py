@@ -1,4 +1,5 @@
 from Chroma import *
+from LoL import *
 
 def main():
     """
@@ -10,7 +11,10 @@ def main():
     """
 
     driver = Driver("devid=FB357780-4617-43A7-960F-D1190ED54806") # Krakken kitty ID
+    game = Partida(driver)
+
     print(driver, end="\n\n")
+    game.connet()
 
     # Hexadecimal colors (https://htmlcolorcodes.com)
     driver.effectNone()
@@ -19,9 +23,6 @@ def main():
     time.sleep(3)
     driver.effectCustom("FF0000", "00FF0F", "2700FF", "FF00D4") # 4 slots max
     time.sleep(3)
-
-    input(f"{YELLOW}[{WHITE}·{YELLOW}] Enter to close...")
-    driver.remove()
 
 if __name__ == "__main__":
     main()
