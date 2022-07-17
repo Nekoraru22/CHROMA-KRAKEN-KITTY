@@ -1,3 +1,4 @@
+from ast import For
 from colorama import Fore, init
 
 ####### COLORS #######
@@ -8,5 +9,6 @@ BLUE = Fore.LIGHTBLUE_EX
 MAGENTA = Fore.LIGHTMAGENTA_EX
 CYAN = Fore.LIGHTCYAN_EX
 WHITE = Fore.LIGHTWHITE_EX
+BLACK = Fore.LIGHTBLACK_EX
 RESET = Fore.RESET
 ######################
