@@ -2,6 +2,7 @@ from nekoUtils import *
 import requests, time, json
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+init()
 
 class Partida:
     def __init__(self, chroma=None):
@@ -42,7 +43,7 @@ class Partida:
                     self.inGame = False
                     self.firstTime = True
                     self.ID = 0
-                    print(f"[·] Error: {error}")
+                    # print(f"[·] Error: {str(error)}")
                 time.sleep(3)
         
         
@@ -118,11 +119,12 @@ class Partida:
         elif "SRU_Blue" in entity: entity = "Blue_Buff"
         elif "SRU_Krug" in entity: entity = "Krug"
         elif "SRU_Murkwol" in entity: entity = "Murkwol"
+        elif "TurretShrine_A" in entity: entity = "TurretShrine"
         else: player = True
 
-        if color == True: col = WHITE
-        if player: return (col + self.all[entity] + BLACK + f"({entity})") if color else entity
-        else: return (col + entity) if color else entity
+        if not color: col = WHITE
+        if player: return (col + self.all[entity] + BLACK + f"({entity})")
+        else: return col + entity
 
 
     def connector_normalicer(self, word):
@@ -140,6 +142,7 @@ class Partida:
             self.ID += 1
             show = True
             points = True
+            resp_time = 0
 
             if event in ["GameStart", "MinionsSpawning"]:
                 temp = ""
@@ -160,6 +163,7 @@ class Partida:
                     temp = f'{GREEN}You have slain {self.entity_normalicer(victim, False)}'
                 elif self.summonerName == victim:
                     temp = f'{RED}{self.entity_normalicer(killer, False)}{RED} has slain you'
+                    resp_time = self.respawn_time()
                 elif self.summonerName in x["Assisters"]:
                     temp = f'{YELLOW}You assisted {self.entity_normalicer(killer, False)}{YELLOW} to kill {self.entity_normalicer(victim, False)}'
                 else:
@@ -238,11 +242,11 @@ class Partida:
                 if self.summonerName == killer:
                     temp = f'{GREEN}You have killed the Herald'
                 elif self.summonerName in x["Assisters"] and x["Stolen"]:
-                    temp = f'{MAGENTA}You assisted {self.entity_normalicer(killer, False)}{MAGENTA} to steal {MAGENTA}the Herald'
+                    temp = f'{MAGENTA}You assisted {self.entity_normalicer(killer, False)}{MAGENTA} to steal the Herald'
                 elif self.summonerName in x["Assisters"] and not x["Stolen"]:
-                    temp = f'{YELLOW}You assisted {self.entity_normalicer(killer, False)}{YELLOW} to kill {MAGENTA}the Herald'
+                    temp = f'{YELLOW}You assisted {self.entity_normalicer(killer, False)}{YELLOW} to kill the {MAGENTA}Herald'
                 else:
-                    temp = f'{self.entity_normalicer(killer)}{CYAN} has killed {MAGENTA}the Herald'
+                    temp = f'{self.entity_normalicer(killer)}{CYAN} has killed the {MAGENTA}Herald'
 
             elif event == "BaronKill":
                 killer = x["KillerName"]
@@ -250,17 +254,18 @@ class Partida:
                 if self.summonerName == killer:
                     temp = f'{GREEN}You have killed the Baron'
                 elif self.summonerName in x["Assisters"] and x["Stolen"]:
-                    temp = f'{MAGENTA}You assisted {self.entity_normalicer(killer, False)}{MAGENTA} to steal {MAGENTA}the Baron'
+                    temp = f'{MAGENTA}You assisted {self.entity_normalicer(killer, False)}{MAGENTA} to steal the Baron'
                 elif self.summonerName in x["Assisters"] and not x["Stolen"]:
-                    temp = f'{YELLOW}You assisted {self.entity_normalicer(killer, False)}{YELLOW} to kill {MAGENTA}the Baron'
+                    temp = f'{YELLOW}You assisted {self.entity_normalicer(killer, False)}{YELLOW} to kill the {MAGENTA}Baron'
                 else:
-                    temp = f'{self.entity_normalicer(killer)}{CYAN} has killed {MAGENTA}the Baron'
+                    temp = f'{self.entity_normalicer(killer)}{CYAN} has killed the {MAGENTA}Baron'
 
             else: 
                 print(x)
                 show = False
 
             if show: print(f'    {GREEN}[✔] {CYAN}[{self.time_normalicer(x["EventTime"])}{CYAN}] {event}{":" if points else ""} {temp}{RESET}') # {eventID} - 
+            if resp_time != 0: print(f'\t\t↳ Respawning in: {BLUE}{resp_time}{RESET}')
 
     def update(self):
         with open("response.json", "w+", encoding="utf-8") as f:
@@ -304,6 +309,12 @@ class Partida:
         if self.gamemode in mapsColors.keys():
             self.color = mapsColors[self.gamemode]
         else: self.color = [0x287E9A, 0x287E9A, 0xA7540F, 0xA7540F]
+
+    
+    def respawn_time(self):
+        for i in self.data["allPlayers"]:
+            if i["summonerName"] == self.summonerName:
+                return round(i["respawnTimer"])
         
 
 # Start
