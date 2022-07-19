@@ -18,7 +18,7 @@ class Partida:
 
     def connet(self):
         while self.execute:
-            try:
+            # try:
                 self.data = requests.get(self.url, verify=False).json()
                 self.events = self.data["events"]["Events"]
                 new = len(self.events)
@@ -35,16 +35,17 @@ class Partida:
                 else: pass
                 time.sleep(1)
                     
-            except Exception as error:
-                if self.inGame: 
-                    if not self.firstTime: print("")
-                    print(f"{RED}[{WHITE}·{RED}] You are not in game {RESET}")
+            # except Exception as error:
+            #     if self.inGame: 
+            #         if not self.firstTime: print("")
+            #         print(f"{RED}[{WHITE}·{RED}] You are not in game {RESET}")
                     
-                    self.inGame = False
-                    self.firstTime = True
-                    self.ID = 0
-                    # print(f"[·] Error: {str(error)}")
-                time.sleep(3)
+            #         self.inGame = False
+            #         self.firstTime = True
+            #         self.ID = 0
+            #         if not ("Max retries exceeded with url" in str(error) or "Connection aborted" in str(error)):
+            #             print(f"[·] Error: {error}")
+            #     time.sleep(3)
         
         
     def stop(self):
@@ -63,8 +64,8 @@ class Partida:
             number = int(number)
             return f'{"0" + str(number) if int(number / 10) == 0 else number}'
 
-        if int(hours) == 0: x = f'{pretty_number(minutes)}:{pretty_number(seconds)}'
-        else: x = f'{pretty_number(hours)}:{pretty_number(minutes)}:{pretty_number(seconds)}'
+        if int(hours) == 0: x = f'{WHITE}{pretty_number(minutes)}{CYAN}:{WHITE}{pretty_number(seconds)}'
+        else: x = f'{WHITE}{pretty_number(hours)}{CYAN}:{WHITE}{pretty_number(minutes)}{CYAN}:{WHITE}{pretty_number(seconds)}'
 
         return x
 
@@ -149,7 +150,7 @@ class Partida:
                 points = False
 
             elif event in ["InhibRespawningSoon", "InhibRespawned"]:
-                self.entity_normalicer(x[event])
+                temp = f"{self.entity_normalicer(x[event])}"
                 points = False
 
             elif event == "GameEnd":
@@ -264,8 +265,8 @@ class Partida:
                 print(x)
                 show = False
 
-            if show: print(f'    {GREEN}[✔] {CYAN}[{self.time_normalicer(x["EventTime"])}{CYAN}] {event}{":" if points else ""} {temp}{RESET}') # {eventID} - 
-            if resp_time != 0: print(f'\t\t↳ Respawning in: {BLUE}{resp_time}{RESET}')
+            if show: print(f'    {CYAN}[{self.time_normalicer(x["EventTime"])}{CYAN}] {event}{":" if points else ""} {temp}{RESET}') # {eventID} - 
+            if resp_time != 0 and len(self.events) == self.ID: print(f'\t\t{WHITE}↳ Respawning in: {BLUE}{resp_time}{RESET}')
 
     def update(self):
         with open("response.json", "w+", encoding="utf-8") as f:
