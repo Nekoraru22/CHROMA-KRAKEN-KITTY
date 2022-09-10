@@ -1,12 +1,17 @@
+import requests, time, json, urllib3
+
+from Chroma import Driver
 from nekoUtils import *
-import requests, time, json
-import urllib3
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 init()
 
 class Partida:
-    def __init__(self, chroma=None):
-        self.url = "https://127.0.0.1:2999/liveclientdata/allgamedata"
+    def __init__(self, ip: str, chroma: Driver =None) -> None:
+        """Initialize the game driver on the asigned IP
+        Assigning Chroma will also change the colors from the Razer Chroma app."""
+
+        self.url = f"https://{ip}:2999/liveclientdata/allgamedata"
         self.chroma = chroma
 
         self.firstTime = True
@@ -16,15 +21,21 @@ class Partida:
         self.ID = 0
 
 
-    def connet(self):
+    def connet(self) -> None:
+        """Starts the connection with the actual game"""
+
         while self.execute:
-            # try:
+            try:
                 self.data = requests.get(self.url, verify=False).json()
                 self.events = self.data["events"]["Events"]
                 new = len(self.events)
 
                 if self.firstTime:
                     self.info()
+
+                    if isinstance(self.colorbase, int): self.chroma.effectStatic(self.colorbase)
+                    else: self.chroma.effectCustom(*self.colorbase)
+                    
                     self.update()
                     self.firstTime = False
 
@@ -35,32 +46,36 @@ class Partida:
                 else: pass
                 time.sleep(1)
                     
-            # except Exception as error:
-            #     if self.inGame: 
-            #         if not self.firstTime: print("")
-            #         print(f"{RED}[{WHITE}·{RED}] You are not in game {RESET}")
+            except Exception as error:
+                if self.inGame: 
+                    if not self.firstTime: print("")
+                    print(f"{RED}[{WHITE}·{RED}] You are not in game {RESET}")
                     
-            #         self.inGame = False
-            #         self.firstTime = True
-            #         self.ID = 0
-            #         if not ("Max retries exceeded with url" in str(error) or "Connection aborted" in str(error)):
-            #             print(f"[·] Error: {error}")
-            #     time.sleep(3)
+                    self.inGame = False
+                    self.firstTime = True
+                    self.ID = 0
+                    if not ("Max retries exceeded with url" in str(error) or "Connection aborted" in str(error)):
+                        print(f"[·] Error: {error}")
+                time.sleep(3)
         
         
-    def stop(self):
+    def stop(self) -> None:
+        """Stops the connection"""
+
         self.execute = False
         if self.chroma: self.chroma.remove()
 
 
-    def time_normalicer(self, seconds):
+    def time_normalicer(self, seconds: int) -> str:
+        """Converts seconds to hour:min:sec"""
+
         minutes = seconds / 60
         seconds = seconds % 60
 
         hours = seconds / 60
         minutes = minutes % 60
 
-        def pretty_number(number):
+        def pretty_number(number: int) -> str:
             number = int(number)
             return f'{"0" + str(number) if int(number / 10) == 0 else number}'
 
@@ -70,14 +85,16 @@ class Partida:
         return x
 
 
-    def entity_normalicer(self, entity, color=True):
+    def entity_normalicer(self, entity: str, color: bool =True) -> str:
+        """Normalice the name and colors for the assigned entity"""
+
         col = WHITE
         player = False
 
         chaos_list = ["Minion_T2", "Turret_T2_", "Barracks_T2_"]
         order_list = ["Minion_T1", "Turret_T1_", "Barracks_T1_"]
 
-        def check_order():
+        def check_order() -> bool:
             x = False
             for i in order_list:
                 if str(i) in entity:
@@ -86,7 +103,7 @@ class Partida:
                 else: pass
             return x
 
-        def check_chaos():
+        def check_chaos() -> bool:
             x = False
             for i in chaos_list:
                 if str(i) in entity:
@@ -128,19 +145,26 @@ class Partida:
         else: return col + entity
 
 
-    def connector_normalicer(self, word):
+    def connector_normalicer(self, word: str) -> str:
+        """Assigns the corresponding connector type"""
+
         vocals = ["a","e","i","o","u"]
         return f'{"an" if word[0].lower() in vocals else "a"} {BLUE}{word}'
 
 
-    def getEvent(self):
+    def getEvent(self) -> None:
+        """Filter event types"""
+
         diff = len(self.events) - self.ID
 
         for i in range(diff):
             x = self.events[self.ID]
+            self.ID += 1
+
             event = x["EventName"]
             eventID = x["EventID"]
-            self.ID += 1
+
+
             show = True
             points = True
             resp_time = 0
@@ -152,7 +176,7 @@ class Partida:
             elif event in ["InhibRespawningSoon", "InhibRespawned"]:
                 temp = f"{self.entity_normalicer(x[event])}"
                 points = False
-
+                
             elif event == "GameEnd":
                 temp = f'({RED if x["Result"] == "Lose" else GREEN}{x["Result"]}{CYAN})'
 
@@ -162,9 +186,11 @@ class Partida:
                 
                 if self.summonerName == killer:
                     temp = f'{GREEN}You have slain {self.entity_normalicer(victim, False)}'
+                    self.colorChange("kill")
                 elif self.summonerName == victim:
                     temp = f'{RED}{self.entity_normalicer(killer, False)}{RED} has slain you'
                     resp_time = self.respawn_time()
+                    self.colorChange("death", resp_time)
                 elif self.summonerName in x["Assisters"]:
                     temp = f'{YELLOW}You assisted {self.entity_normalicer(killer, False)}{YELLOW} to kill {self.entity_normalicer(victim, False)}'
                 else:
@@ -268,18 +294,24 @@ class Partida:
             if show: print(f'    {CYAN}[{self.time_normalicer(x["EventTime"])}{CYAN}] {event}{":" if points else ""} {temp}{RESET}') # {eventID} - 
             if resp_time != 0 and len(self.events) == self.ID: print(f'\t\t{WHITE}↳ Respawning in: {BLUE}{resp_time}{RESET}')
 
-    def update(self):
+    def update(self) -> None:
+        """Saves the changes in a json"""
+
         with open("response.json", "w+", encoding="utf-8") as f:
-            f.write(json.dumps(self.data, indent=4, sort_keys=True))
+            f.write(json.dumps(self.data, indent=4, sort_keys=True, ensure_ascii=False))
             self.getEvent()
 
 
-    def skin(self, i):
+    def skin(self, i: object) -> str:
+        """Returns the name of the player's skin if he/she has"""
+
         try: return f' - {i["skinName"]}'
         except: return ""
 
 
-    def info(self):
+    def info(self) -> None:
+        """Sorting and storing basic game information such as teams and players"""
+
         self.summonerName = self.data["activePlayer"]["summonerName"]
         self.gamemode = self.data["gameData"]["gameMode"]
         self.team_order = []
@@ -304,20 +336,39 @@ class Partida:
 \n{MAGENTA}[{WHITE}·{MAGENTA}] Events \
         ' + RESET)
 
-
-    def baseColor(self):
-        mapsColors = {"Aram":0x59fafb}
-        if self.gamemode in mapsColors.keys():
-            self.color = mapsColors[self.gamemode]
-        else: self.color = [0x287E9A, 0x287E9A, 0xA7540F, 0xA7540F]
-
     
-    def respawn_time(self):
+    def respawn_time(self) -> int:
+        """Returns the player's respawning time"""
+
         for i in self.data["allPlayers"]:
             if i["summonerName"] == self.summonerName:
                 return round(i["respawnTimer"])
         
 
-# Start
-game = Partida()
-game.connet()
+    def baseColor(self) -> None:
+        """(With Chroma) Sets the default color according to the played map"""
+
+        mapsColors = {"Aram" : "59fafb"}
+
+        if self.gamemode in mapsColors.keys():
+            self.colorbase = mapsColors[self.gamemode]
+        else: self.colorbase = ["00FFBD", "00FFBD", "1D6E01", "1D6E01"]
+
+
+    def colorChange(self, event: str, resp_time: int =0) -> None:
+        """(With Chroma and Arduino) Change the color according to the type of event"""
+
+        if event == "death":
+            self.chroma.effectStatic("FF0000", resp_time)
+        elif event == "kill":
+            self.chroma.effectStatic("00FF00", 3)
+        else: return
+
+        if isinstance(self.colorbase, int): self.chroma.effectStatic(self.colorbase)
+        else: self.chroma.effectCustom(*self.colorbase)
+            
+
+# Start #
+
+# game = Partida('127.0.0.1')
+# game.connet()

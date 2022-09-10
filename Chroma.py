@@ -1,10 +1,18 @@
-from threading import Thread
-from nekoUtils import *
 import requests, time
+
+from threading import Thread
+from typing import Tuple
+from nekoUtils import *
+
 init()
 
 class Driver():
-    def __init__(self, device):
+    def __init__(self, device: str) -> None:
+        """Control the color from Razer Chroma
+        
+        - Krakken kitty ID: devid=FB357780-4617-43A7-960F-D1190ED54806
+        """
+
         uri, sessionid = self.create()
         self.uri = uri
         self.sessionid = sessionid
@@ -13,15 +21,16 @@ class Driver():
         self.tick = 0
         Thread(target=self.heartbeat, daemon=True).start()
 
-
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{MAGENTA}[{WHITE}·{MAGENTA}] SessionID: {WHITE}{self.sessionid}\n{MAGENTA}[{WHITE}·{MAGENTA}] URI: {WHITE}{self.uri}"
 
 
-    def create(self):
+    def create(self) -> Tuple[str, int]:
+        """Initialize the connection"""
+
         data = {
-            "title": "Neko Razer",
-            "description": "Proves xD",
+            "title": "Neko Chroma",
+            "description": "Meow! :3",
             "author": {
                 "name": "Nekoraru22",
                 "contact": "https://www.github.com/Nekoraru22"
@@ -35,7 +44,9 @@ class Driver():
         return resp["uri"], resp["sessionid"]
 
 
-    def remove(self):
+    def remove(self) -> None:
+        """Closes the connection"""
+
         resp = requests.delete(self.uri, verify=False)
         
         if resp.json()["result"] == 0:
@@ -43,7 +54,9 @@ class Driver():
         else: print(resp.json())
 
 
-    def heartbeat(self):
+    def heartbeat(self) -> None:
+        """Keeps the connection alive"""
+
         while True:
             try:
                 res = requests.put(f"{self.uri}/heartbeat", verify=False)
@@ -53,7 +66,9 @@ class Driver():
                 break
 
 
-    def add(self, ids):
+    def add(self, ids: list[int]) -> None:
+        """Adds an effect with the assigned IDs"""
+
         if len(ids) == 1:
             data = {"id": ids[0]}
         elif len(ids) > 1:
@@ -72,29 +87,40 @@ class Driver():
             if resp.json()["result"] != 0: errors.append(ids[0])
 
         if len(errors) > 0: print(Fore.LIGHTRED_EX + "Error on: " + Fore.LIGHTWHITE_EX + ", ".join(errors) + Fore.RESET)
-        else: print(Fore.LIGHTGREEN_EX + "[·] Effect aplied: " + Fore.LIGHTWHITE_EX + ", ".join(ids) + Fore.RESET)
+        else: print(Fore.LIGHTGREEN_EX + "[·] Effect applied: " + Fore.LIGHTWHITE_EX + ", ".join(ids) + Fore.RESET)
 
 
-    def toBGR(self, hexadecimal):
-        x = tuple(hexadecimal[i:i+2] for i in (0, 2, 4))
+    def toBGR(self, hexadecimal: int) -> int:
+        """Converts hexadecimal to BGR"""
+
+        x = tuple(str(hexadecimal)[i:i+2] for i in (0, 2, 4))
         decimal = str(x[2]) + str(x[1]) + str(x[0])
         return int(decimal, 16)
 
 
-    def change(self, data):
+    def change(self, data: object, timeout: int) -> None:
+        """Applies the received effect"""
+
         res = requests.put(f"{self.uri}/{self.device}", json=data, verify=False)
         try: print(f"{RED}[{WHITE}·{RED}] {res.json()['error']}{RESET}")
         except: pass
 
-        print(f"{GREEN}[{WHITE}·{GREEN}] Effect aplied on: " + WHITE + f"{self.uri}/{self.device}" + RESET)
+        print(f"\t{CYAN}↳ {GREEN}Effect applied on: " + WHITE + f"{self.uri}/{self.device}" + RESET)
+        
+        if timeout > 0: time.sleep(timeout)
+        
 
     # Effects
-    def effectNone(self):
+    def effectNone(self, timeout: int =0) -> None:
+        """Turn off the colors"""
+
         data = { "effect": "CHROMA_NONE" }
-        self.change(data)
+        self.change(data, timeout)
 
 
-    def effectStatic(self, hexadecimal):
+    def effectStatic(self, hexadecimal: int, timeout: int =0) -> None:
+        """Adds static color"""
+
         color = self.toBGR(hexadecimal)
 
         data = {
@@ -103,10 +129,19 @@ class Driver():
                 "color": color
             }
         }
-        self.change(data)
+        self.change(data, timeout)
 
 
-    def effectCustom(self, h1, h2, h3, h4):
+    def effectCustom(self, h1: int, h2: int, h3: int, h4: int, timeout: int =0) -> None:
+        """Adds custom color to Krakken Kitty Headsets
+        
+        (hexadecimal colors)
+        - h1: Left_Headset
+        - h2: Right_Headset
+        - h3: Left_Kitty
+        - h4: Right_Kitty
+        """
+
         c1 = self.toBGR(h1)
         c2 = self.toBGR(h2)
         c3 = self.toBGR(h3)
@@ -116,4 +151,4 @@ class Driver():
             "effect":"CHROMA_CUSTOM",
             "param":[ c1, c2, c3, c4 ] # Left_Headset, Right_Headset, Left_Kitty, Right_Kitty (BGR format)
         }
-        self.change(data)
+        self.change(data, timeout)

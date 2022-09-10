@@ -1,4 +1,3 @@
-from ast import For
 from colorama import Fore, init
 
 ####### COLORS #######
