@@ -1,4 +1,4 @@
-import requests, time, json, urllib3, threading
+import requests, time, json, urllib3, threading, serial, os
 
 from prettytable import PrettyTable
 from Chroma import Driver
@@ -6,6 +6,17 @@ from nekoUtils import *
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 init()
+
+__LOCK__ = threading.Lock()
+
+class Console:
+    @staticmethod
+    def printf(content: str):
+        __LOCK__.acquire()
+        os.system('cls' if os.name == 'nt' else 'clear')
+        print(content)
+        __LOCK__.release()
+
 
 class Partida:
     def __init__(self, ip: str, chroma: Driver =None) -> None:
@@ -24,6 +35,8 @@ class Partida:
         table.align[f"{WHITE}Event{RESET}"] = "l"
         table.align[f"{WHITE}Time{RESET}"] = "l"
         self.table = table
+
+        self.arduino = serial.Serial('COM3', 9600)
 
         self.ID = 0
 
@@ -57,6 +70,12 @@ class Partida:
                 if self.inGame: 
                     if not self.firstTime: print("")
                     print(f"{RED}[{WHITE}·{RED}] You are not in game {RESET}")
+
+                    table = PrettyTable([f"{WHITE}Time{RESET}", f"{WHITE}EventType{RESET}", f"{WHITE}Event{RESET}", f"{WHITE}Respawn{RESET}"])
+                    table.align[f"{WHITE}EventType{RESET}"] = "l"
+                    table.align[f"{WHITE}Event{RESET}"] = "l"
+                    table.align[f"{WHITE}Time{RESET}"] = "l"
+                    self.table = table
                     
                     self.inGame = False
                     self.firstTime = True
@@ -171,18 +190,14 @@ class Partida:
             event = x["EventName"]
             eventID = x["EventID"]
 
-
             show = True
-            points = True
             resp_time = 0
 
             if event in ["GameStart", "MinionsSpawning"]:
                 temp = f"{YELLOW}UwU{RESET}"
-                points = False
 
             elif event in ["InhibRespawningSoon", "InhibRespawned"]:
                 temp = f"{self.entity_normalicer(x[event])}"
-                points = False
                 
             elif event == "GameEnd":
                 temp = f'({RED if x["Result"] == "Lose" else GREEN}{x["Result"]}{CYAN})'
@@ -202,6 +217,7 @@ class Partida:
 
                 elif self.summonerName in x["Assisters"]:
                     temp = f'{YELLOW}You assisted {self.entity_normalicer(killer, False)}{YELLOW} to kill {self.entity_normalicer(victim, False)}'
+                    self.colorChange("assist")
 
                 else:
                     temp = f'{self.entity_normalicer(killer)}{CYAN} has slain {self.entity_normalicer(victim)}'
@@ -268,6 +284,7 @@ class Partida:
 
                 if self.summonerName == killer:
                     temp = f'{GREEN}You have killed {self.connector_normalicer(x["DragonType"])} Dragon'
+                    self.colorChange("dragon")
                 elif self.summonerName in x["Assisters"] and x["Stolen"]:
                     temp = f'{MAGENTA}You assisted {self.entity_normalicer(killer, False)}{MAGENTA} to steal {self.connector_normalicer(x["DragonType"])} Dragon'
                 elif self.summonerName in x["Assisters"] and not x["Stolen"]:
@@ -280,6 +297,7 @@ class Partida:
 
                 if self.summonerName == killer:
                     temp = f'{GREEN}You have killed the Herald'
+                    self.colorChange("herald")
                 elif self.summonerName in x["Assisters"] and x["Stolen"]:
                     temp = f'{MAGENTA}You assisted {self.entity_normalicer(killer, False)}{MAGENTA} to steal the Herald'
                 elif self.summonerName in x["Assisters"] and not x["Stolen"]:
@@ -292,6 +310,7 @@ class Partida:
 
                 if self.summonerName == killer:
                     temp = f'{GREEN}You have killed the Baron'
+                    self.colorChange("baron")
                 elif self.summonerName in x["Assisters"] and x["Stolen"]:
                     temp = f'{MAGENTA}You assisted {self.entity_normalicer(killer, False)}{MAGENTA} to steal the Baron'
                 elif self.summonerName in x["Assisters"] and not x["Stolen"]:
@@ -303,15 +322,13 @@ class Partida:
                 print(x)
                 show = False
 
-            # if show: print(f'    {CYAN}[{self.time_normalicer(x["EventTime"])}{CYAN}] {event}{":" if points else ""} {temp}{RESET}') # {eventID} - 
-            # if show and resp_time != 0 and len(self.events) == self.ID: print(f'\t\t{WHITE}↳ Respawning in: {BLUE}{resp_time}{RESET}')
             if show:
                 if resp_time == 0: resp_time = "-"
                 else: resp_time = f"{resp_time} s"
                 
                 self.table.add_row([f'{CYAN}{self.time_normalicer(x["EventTime"])}{RESET}', f'{CYAN}{event}{RESET}', f'{temp}{RESET}', f'{BLUE}{resp_time}{RESET}'])
                 
-                if len(self.events) == self.ID: print(self.table)
+                if len(self.events) == self.ID: Console.printf(self.table)
 
     def update(self) -> None:
         """Saves the changes in a json"""
@@ -375,17 +392,34 @@ class Partida:
 
 
     def colorChange(self, event: str, resp_time: int =0) -> None:
-        """(With Chroma and Arduino) Change the color according to the type of event"""
+        """(With Chroma and Arduino) Change the color according to the type of event
+        - Arduino: ["stop", "fade", "rojo", "verde", "azul", "morado", "blanco"]"""
 
         def newThread() -> None:
-            if event == "death":
-                self.chroma.effectStatic("FF0000", resp_time)
-            elif event == "kill":
-                self.chroma.effectStatic("00FF00", 3)
-            else: return
+            try:
+                if event == "death":
+                    self.arduino.write(bytes("rojo", encoding='utf-8'))
+                    self.chroma.effectStatic("FF0000", resp_time)
+                elif event == "kill":
+                    self.arduino.write(bytes("verde", encoding='utf-8'))
+                    self.chroma.effectStatic("00FF00", 3)
+                elif event == "assist":
+                    self.arduino.write(bytes("azul", encoding='utf-8'))
+                    self.chroma.effectStatic("FFFF00", 3)
+                elif event == "dragon":
+                    self.arduino.write(bytes("azul", encoding='utf-8'))
+                    self.chroma.effectStatic("00D4FF", 3)
+                elif event in ["herald", "baron"]:
+                    self.arduino.write(bytes("morado", encoding='utf-8'))
+                    self.chroma.effectStatic("FF00C1", 3)
+                else: return
+            except: pass
 
             if isinstance(self.colorbase, int): self.chroma.effectStatic(self.colorbase)
             else: self.chroma.effectCustom(*self.colorbase)
+            
+            try: self.arduino.write(bytes("blanco", encoding='utf-8'))
+            except: pass
         
         threading.Thread(target= newThread).start()
 

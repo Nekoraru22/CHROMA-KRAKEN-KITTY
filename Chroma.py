@@ -90,10 +90,10 @@ class Driver():
         else: print(Fore.LIGHTGREEN_EX + "[·] Effect applied: " + Fore.LIGHTWHITE_EX + ", ".join(ids) + Fore.RESET)
 
 
-    def toBGR(self, hexadecimal: int) -> int:
+    def toBGR(self, hexadecimal: str) -> int:
         """Converts hexadecimal to BGR"""
 
-        x = tuple(str(hexadecimal)[i:i+2] for i in (0, 2, 4))
+        x = tuple(hexadecimal[i:i+2] for i in (0, 2, 4))
         decimal = str(x[2]) + str(x[1]) + str(x[0])
         return int(decimal, 16)
 
@@ -118,7 +118,7 @@ class Driver():
         self.change(data, timeout, logs)
 
 
-    def effectStatic(self, hexadecimal: int, timeout: int =0, logs: bool =False) -> None:
+    def effectStatic(self, hexadecimal: str, timeout: int =0, logs: bool =False) -> None:
         """Adds static color"""
 
         color = self.toBGR(hexadecimal)
@@ -132,7 +132,7 @@ class Driver():
         self.change(data, timeout, logs)
 
 
-    def effectCustom(self, h1: int, h2: int, h3: int, h4: int, timeout: int =0, logs: bool =False) -> None:
+    def effectCustom(self, h1: str, h2: str, h3: str, h4: str, timeout: int =0, logs: bool =False) -> None:
         """Adds custom color to Krakken Kitty Headsets
         
         (hexadecimal colors)
