@@ -98,27 +98,27 @@ class Driver():
         return int(decimal, 16)
 
 
-    def change(self, data: object, timeout: int) -> None:
+    def change(self, data: object, timeout: int, logs: bool) -> None:
         """Applies the received effect"""
 
         res = requests.put(f"{self.uri}/{self.device}", json=data, verify=False)
         try: print(f"{RED}[{WHITE}·{RED}] {res.json()['error']}{RESET}")
         except: pass
 
-        print(f"\t{CYAN}↳ {GREEN}Effect applied on: " + WHITE + f"{self.uri}/{self.device}" + RESET)
+        if logs: print(f"\t{CYAN}↳ {GREEN}Effect applied on: " + WHITE + f"{self.uri}/{self.device}" + RESET)
         
         if timeout > 0: time.sleep(timeout)
         
 
     # Effects
-    def effectNone(self, timeout: int =0) -> None:
+    def effectNone(self, timeout: int =0, logs: bool =False) -> None:
         """Turn off the colors"""
 
         data = { "effect": "CHROMA_NONE" }
-        self.change(data, timeout)
+        self.change(data, timeout, logs)
 
 
-    def effectStatic(self, hexadecimal: int, timeout: int =0) -> None:
+    def effectStatic(self, hexadecimal: int, timeout: int =0, logs: bool =False) -> None:
         """Adds static color"""
 
         color = self.toBGR(hexadecimal)
@@ -129,10 +129,10 @@ class Driver():
                 "color": color
             }
         }
-        self.change(data, timeout)
+        self.change(data, timeout, logs)
 
 
-    def effectCustom(self, h1: int, h2: int, h3: int, h4: int, timeout: int =0) -> None:
+    def effectCustom(self, h1: int, h2: int, h3: int, h4: int, timeout: int =0, logs: bool =False) -> None:
         """Adds custom color to Krakken Kitty Headsets
         
         (hexadecimal colors)
@@ -151,4 +151,4 @@ class Driver():
             "effect":"CHROMA_CUSTOM",
             "param":[ c1, c2, c3, c4 ] # Left_Headset, Right_Headset, Left_Kitty, Right_Kitty (BGR format)
         }
-        self.change(data, timeout)
+        self.change(data, timeout, logs)

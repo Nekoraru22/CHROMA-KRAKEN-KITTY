@@ -1,5 +1,6 @@
-import requests, time, json, urllib3
+import requests, time, json, urllib3, threading
 
+from prettytable import PrettyTable
 from Chroma import Driver
 from nekoUtils import *
 
@@ -17,6 +18,12 @@ class Partida:
         self.firstTime = True
         self.execute = True
         self.inGame = True
+
+        table = PrettyTable([f"{WHITE}Time{RESET}", f"{WHITE}EventType{RESET}", f"{WHITE}Event{RESET}", f"{WHITE}Respawn{RESET}"])
+        table.align[f"{WHITE}EventType{RESET}"] = "l"
+        table.align[f"{WHITE}Event{RESET}"] = "l"
+        table.align[f"{WHITE}Time{RESET}"] = "l"
+        self.table = table
 
         self.ID = 0
 
@@ -170,7 +177,7 @@ class Partida:
             resp_time = 0
 
             if event in ["GameStart", "MinionsSpawning"]:
-                temp = ""
+                temp = f"{YELLOW}UwU{RESET}"
                 points = False
 
             elif event in ["InhibRespawningSoon", "InhibRespawned"]:
@@ -187,12 +194,15 @@ class Partida:
                 if self.summonerName == killer:
                     temp = f'{GREEN}You have slain {self.entity_normalicer(victim, False)}'
                     self.colorChange("kill")
+
                 elif self.summonerName == victim:
                     temp = f'{RED}{self.entity_normalicer(killer, False)}{RED} has slain you'
                     resp_time = self.respawn_time()
                     self.colorChange("death", resp_time)
+
                 elif self.summonerName in x["Assisters"]:
                     temp = f'{YELLOW}You assisted {self.entity_normalicer(killer, False)}{YELLOW} to kill {self.entity_normalicer(victim, False)}'
+
                 else:
                     temp = f'{self.entity_normalicer(killer)}{CYAN} has slain {self.entity_normalicer(victim)}'
 
@@ -201,6 +211,7 @@ class Partida:
 
                 if self.summonerName == recipient:
                     temp = f'{GREEN}You have obtained the first blood'
+
                 else:
                     temp = f'First blood by {self.entity_normalicer(recipient)}{RESET}'
 
@@ -209,6 +220,7 @@ class Partida:
 
                 if self.summonerName == killer:
                     temp = f'{GREEN}You have a Kill Streak of {BLUE}{x["KillStreak"]}'
+
                 else:
                     temp = f'{self.entity_normalicer(killer)}{CYAN} has a Kill Streak of {BLUE}{x["KillStreak"]}'
 
@@ -291,8 +303,15 @@ class Partida:
                 print(x)
                 show = False
 
-            if show: print(f'    {CYAN}[{self.time_normalicer(x["EventTime"])}{CYAN}] {event}{":" if points else ""} {temp}{RESET}') # {eventID} - 
-            if resp_time != 0 and len(self.events) == self.ID: print(f'\t\t{WHITE}↳ Respawning in: {BLUE}{resp_time}{RESET}')
+            # if show: print(f'    {CYAN}[{self.time_normalicer(x["EventTime"])}{CYAN}] {event}{":" if points else ""} {temp}{RESET}') # {eventID} - 
+            # if show and resp_time != 0 and len(self.events) == self.ID: print(f'\t\t{WHITE}↳ Respawning in: {BLUE}{resp_time}{RESET}')
+            if show:
+                if resp_time == 0: resp_time = "-"
+                else: resp_time = f"{resp_time} s"
+                
+                self.table.add_row([f'{CYAN}{self.time_normalicer(x["EventTime"])}{RESET}', f'{CYAN}{event}{RESET}', f'{temp}{RESET}', f'{BLUE}{resp_time}{RESET}'])
+                
+                if len(self.events) == self.ID: print(self.table)
 
     def update(self) -> None:
         """Saves the changes in a json"""
@@ -358,15 +377,17 @@ class Partida:
     def colorChange(self, event: str, resp_time: int =0) -> None:
         """(With Chroma and Arduino) Change the color according to the type of event"""
 
-        if event == "death":
-            self.chroma.effectStatic("FF0000", resp_time)
-        elif event == "kill":
-            self.chroma.effectStatic("00FF00", 3)
-        else: return
+        def newThread() -> None:
+            if event == "death":
+                self.chroma.effectStatic("FF0000", resp_time)
+            elif event == "kill":
+                self.chroma.effectStatic("00FF00", 3)
+            else: return
 
-        if isinstance(self.colorbase, int): self.chroma.effectStatic(self.colorbase)
-        else: self.chroma.effectCustom(*self.colorbase)
-            
+            if isinstance(self.colorbase, int): self.chroma.effectStatic(self.colorbase)
+            else: self.chroma.effectCustom(*self.colorbase)
+        
+        threading.Thread(target= newThread).start()
 
 # Start #
 
